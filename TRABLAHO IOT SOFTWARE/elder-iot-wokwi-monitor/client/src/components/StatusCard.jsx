@@ -1,0 +1,12 @@
+export default function StatusCard({ title, value, detail, tone = "normal", icon: Icon }) {
+  return (
+    <section className={`card status-card tone-${tone}`}>
+      <div className="card-title-row">
+        <span>{title}</span>
+        {Icon ? <Icon size={20} /> : null}
+      </div>
+      <strong>{value ?? "--"}</strong>
+      {detail ? <p>{detail}</p> : null}
+    </section>
+  );
+}
