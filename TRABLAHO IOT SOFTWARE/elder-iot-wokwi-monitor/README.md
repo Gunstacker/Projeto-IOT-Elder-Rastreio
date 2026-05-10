@@ -1,168 +1,133 @@
 # Elder IoT Wokwi Monitor
 
-Sistema web de monitoramento remoto de idosos com arquitetura IoT simulada de forma realista.
+Prototipo academico de monitoramento remoto de idosos com arquitetura IoT simulada.
 
-O fluxo principal usa Wokwi simulando um ESP32 conectado a um MPU6050. O ESP32 le acelerometro, giroscopio e temperatura, monta um JSON e envia para uma API Node.js local exposta na internet via ngrok. O backend calcula magnitudes, classifica risco, salva historico em PostgreSQL e atualiza o dashboard React em tempo real via Socket.IO.
+O fluxo principal usa um ESP32 com MPU6050 no Wokwi. O dispositivo simulado envia leituras de acelerometro, giroscopio, bateria, rede e localizacao para uma API Node.js. O backend classifica risco, salva historico no PostgreSQL e atualiza um dashboard React em tempo real via Socket.IO.
 
-## Objetivo
+> Este projeto e um prototipo educacional. Nao e um produto medico pronto para uso real.
 
-Demonstrar um prototipo academico de monitoramento de idosos com:
+## O Que O Sistema Faz
 
-- movimento, aceleracao e rotacao;
-- possivel queda por impacto;
-- baixa movimentacao pos-queda;
-- inatividade;
-- bateria do dispositivo;
-- perda de comunicacao;
-- localizacao simulada ou enviada pelo celular;
-- dashboard em tempo real;
-- historico de eventos.
+- Monitora leituras simuladas de movimento do idoso.
+- Detecta possivel queda por impacto.
+- Detecta baixa movimentacao apos queda.
+- Detecta inatividade.
+- Detecta bateria baixa.
+- Detecta perda de comunicacao do dispositivo.
+- Exibe status, sensores, mapa e historico no dashboard.
+- Permite marcar eventos como atendidos.
+- Tem fallback local caso Wokwi ou tunel publico falhem.
 
 ## Arquitetura
 
 ```text
 Wokwi ESP32 + MPU6050
   -> HTTP POST HTTPS
-  -> ngrok
-  -> localhost:3000
-  -> Express + PostgreSQL + classificador
+  -> ngrok ou Tunnelmole
+  -> API Node.js/Express
+  -> PostgreSQL
   -> Socket.IO
-  -> React dashboard em localhost:5173
+  -> Dashboard React/Vite
 ```
 
-O dashboard tambem tem:
+## Stack
 
-- `/phone-gps`: celular envia GPS real ou simulado;
-- `/local-simulator`: plano B local caso Wokwi ou ngrok falhe;
-- `/wokwi-setup`: guia de configuracao da apresentacao.
+- Backend: Node.js, Express, PostgreSQL, Socket.IO.
+- Frontend: React, Vite, Leaflet, Socket.IO Client.
+- Simulacao IoT: Wokwi, ESP32, MPU6050, Arduino/C++.
+- Exposicao local: ngrok ou Tunnelmole.
 
-## Tecnologias
+## Como Rodar
 
-- Backend: Node.js, Express, Socket.IO, PostgreSQL, pg, dotenv, cors.
-- Frontend: React, Vite, Socket.IO Client, Leaflet, React Leaflet, lucide-react.
-- Firmware: Arduino/C++, ESP32, Adafruit MPU6050, ArduinoJson, HTTPClient, WiFiClientSecure.
-- Exposicao local: ngrok.
+Siga a ordem. A maioria dos erros acontece por pular etapa de banco ou editar o arquivo errado.
 
-## Como instalar
+### 1. Subir o banco
 
-Instale o Node.js LTS e o PostgreSQL. Se for usar Docker, suba o banco com:
+Com Docker:
 
 ```bash
 docker compose up -d postgres
 ```
 
-Se for usar PostgreSQL instalado diretamente na maquina, crie o banco local:
+Ou usando PostgreSQL local:
 
 ```bash
 createdb elder_iot_monitor
 ```
 
-Se seu usuario/senha forem diferentes, ajuste `server/.env` com:
+### 2. Configurar ambiente do backend
 
-```env
-DATABASE_URL=postgres://USUARIO:SENHA@localhost:5432/elder_iot_monitor
-PGSSL=false
-```
-
-Depois instale as dependencias:
+Crie `server/.env` a partir do exemplo:
 
 ```bash
-cd elder-iot-wokwi-monitor
+cd server
+cp .env.example .env
+```
+
+No Windows PowerShell:
+
+```powershell
+cd server
+Copy-Item .env.example .env
+```
+
+Edite `server/.env`:
+
+```env
+PORT=3000
+CORS_ORIGIN=http://localhost:5173
+DATABASE_URL=postgres://USUARIO:SENHA@localhost:5432/elder_iot_monitor
+PGSSL=false
+OFFLINE_AFTER_SECONDS=10
+OFFLINE_CHECK_INTERVAL_MS=5000
+```
+
+Importante: `.env.example` e so exemplo. Quem e carregado pela aplicacao e `server/.env`.
+
+### 3. Instalar dependencias
+
+Na raiz do projeto:
+
+```bash
 npm run install:all
 ```
 
-## Como rodar backend
+### 4. Rodar backend e frontend
 
 ```bash
-cd elder-iot-wokwi-monitor
-npm run dev:server
-```
-
-API esperada:
-
-```text
-http://localhost:3000
-```
-
-Health check:
-
-```bash
-curl http://localhost:3000/api/health
-```
-
-Na primeira inicializacao, o backend cria automaticamente as tabelas no PostgreSQL e insere o idoso/dispositivo padrao.
-
-## Como rodar frontend
-
-```bash
-cd elder-iot-wokwi-monitor
-npm run dev:client
-```
-
-Abra:
-
-```text
-http://localhost:5173
-```
-
-## Como rodar tudo junto
-
-```bash
-cd elder-iot-wokwi-monitor
 npm run dev
 ```
 
-## Como rodar ngrok
+URLs principais:
 
-Em outro terminal:
+```text
+Frontend: http://localhost:5173
+Backend:  http://localhost:3000
+Health:   http://localhost:3000/api/health
+```
+
+Na primeira execucao, o backend cria as tabelas e insere dados iniciais automaticamente.
+
+## Como Usar O Wokwi
+
+1. Rode backend, frontend e banco.
+2. Abra um tunel para a porta `3000`:
 
 ```bash
 ngrok http 3000
 ```
 
-Copie a URL HTTPS, por exemplo:
+Ou use Tunnelmole, se esse for o tunel configurado na sua maquina.
 
-```text
-https://abc123.ngrok-free.app
-```
-
-O endpoint final para o Wokwi sera:
-
-```text
-https://abc123.ngrok-free.app/api/iot/readings
-```
-
-## Por que usar ngrok
-
-O Wokwi normalmente acessa a internet, mas nao consegue acessar diretamente o `localhost` do notebook.
-
-Isto geralmente nao funciona no Wokwi:
-
-```text
-http://localhost:3000/api/iot/readings
-```
-
-O ngrok resolve criando uma URL publica HTTPS que encaminha para o backend local:
-
-```text
-Wokwi -> URL publica ngrok -> localhost:3000
-```
-
-## Como configurar Wokwi
-
-1. Abra a pasta `wokwi/` no Wokwi.
-2. Confirme que existem `sketch.ino`, `diagram.json` e `libraries.txt`.
-3. Copie a URL HTTPS do ngrok.
-4. No `sketch.ino`, altere:
+3. Copie a URL HTTPS gerada.
+4. No arquivo `wokwi/sketch.ino`, altere:
 
 ```cpp
-const char* API_URL = "https://SEU-NGROK.ngrok-free.app/api/iot/readings";
+const char* API_URL = "https://SUA-URL-PUBLICA/api/iot/readings";
 ```
 
-5. Inicie a simulacao.
-6. Abra o Serial Monitor.
-
-## Serial Monitor
+5. Inicie a simulacao no Wokwi.
+6. Use o Serial Monitor:
 
 ```text
 n = normal/parado
@@ -177,129 +142,59 @@ r = reset normal
 h = ajuda
 ```
 
-## Como testar queda
+## Telas Do Sistema
 
-1. Backend rodando.
-2. Frontend rodando.
-3. ngrok ativo.
-4. URL do ngrok colada no `sketch.ino`.
-5. No Serial Monitor do Wokwi, digite:
+- `/dashboard`: painel principal.
+- `/events`: historico de eventos.
+- `/elders`: idosos cadastrados.
+- `/devices`: dispositivos monitorados.
+- `/phone-gps`: celular como fonte auxiliar de GPS/movimento.
+- `/local-simulator`: fallback local para demonstracao.
 
-```text
-f
-```
+## Documentacao
 
-O backend deve receber dados brutos de acelerometro e giroscopio, calcular:
+Leia estes arquivos antes de apresentar ou alterar o projeto:
 
-```text
-accMagnitude >= 3.0g
-gyroMagnitude >= 120 deg/s
-```
+- [APRESENTACAO_PROJETO_COMPLETA.md](./APRESENTACAO_PROJETO_COMPLETA.md): roteiro completo para apresentacao.
+- [COMO_RODAR_RESUMIDO.md](./COMO_RODAR_RESUMIDO.md): passo a passo curto.
+- [docs/architecture.md](./docs/architecture.md): arquitetura do sistema.
+- [docs/hardware-simulado-wokwi-e-celular.md](./docs/hardware-simulado-wokwi-e-celular.md): explicacao sobre Wokwi, celular e hardware simulado.
+- [docs/future-real-hardware.md](./docs/future-real-hardware.md): caminho para ESP32 fisico.
+- [docs/testing-checklist.md](./docs/testing-checklist.md): checklist de testes.
+- [wokwi/README.md](./wokwi/README.md): configuracao especifica do Wokwi.
 
-E criar evento:
+## Erros Comuns
 
-```text
-FALL_IMPACT_DETECTED
-```
+### Backend caiu com `28P01`
 
-## Como testar offline
+Senha ou usuario do PostgreSQL incorreto no `server/.env`.
 
-No Serial Monitor do Wokwi:
+### Frontend abriu, mas API falha
 
-```text
-o
-```
+Verifique se o backend esta rodando em `http://localhost:3000` e se `/api/health` responde.
 
-O firmware pausa o envio por 15 segundos. O backend marca o dispositivo como `OFFLINE` se ficar mais de 10 segundos sem leitura.
+### Wokwi nao envia dados
 
-## Como testar por curl
+O Wokwi nao acessa `localhost` diretamente. Use uma URL HTTPS publica do ngrok/Tunnelmole e cole no `API_URL`.
 
-```bash
-curl -X POST http://localhost:3000/api/iot/readings \
-  -H "Content-Type: application/json" \
-  -d '{
-    "deviceId": "ESP32_WOKWI_001",
-    "deviceType": "ESP32_WOKWI_SIMULATED",
-    "firmwareVersion": "1.0.0",
-    "elderId": 1,
-    "network": {"ssid": "Wokwi-GUEST", "rssi": -60, "ip": "10.10.0.2"},
-    "battery": {"level": 87, "charging": false, "voltage": 3.91},
-    "sensors": {
-      "mpu6050": {
-        "accelerometer": {"x": 2.8, "y": 1.6, "z": 3.4, "unit": "g"},
-        "gyroscope": {"x": 180, "y": 95, "z": 40, "unit": "deg/s"},
-        "temperature": 31.2
-      },
-      "gps": {
-        "latitude": -16.686891,
-        "longitude": -49.264794,
-        "accuracy": 8.5,
-        "source": "TEST"
-      }
-    },
-    "simulation": {"source": "CURL", "mode": "FALL_IMPACT", "isSimulated": true}
-  }'
-```
+### HTTP 500
 
-Resultado esperado:
-
-```text
-FALL_IMPACT_DETECTED
-```
-
-## Celular opcional
-
-Abra no celular:
-
-```text
-http://IP_DO_NOTEBOOK:5173/phone-gps
-```
-
-Use os botoes:
-
-- Usar GPS real;
-- Usar GPS simulado;
-- Enviar localizacao agora;
-- Iniciar envio automatico;
-- Parar envio automatico.
-
-## Plano B
-
-Abra:
-
-```text
-http://localhost:5173/local-simulator
-```
-
-Essa tela envia payloads equivalentes aos do Wokwi para `/api/simulation/local-reading`. Ela deve ser usada apenas como fallback de apresentacao.
-
-## Como apresentar
-
-1. Rode backend.
-2. Rode frontend.
-3. Rode ngrok.
-4. Cole a URL no Wokwi.
-5. Mostre o dashboard recebendo leitura normal.
-6. Digite `w` para caminhada.
-7. Digite `f` para queda.
-8. Mostre o evento salvo no historico.
-9. Marque o evento como atendido.
-10. Digite `o` e aguarde o offline.
+Olhe o terminal do backend. O erro real aparece la. Normalmente e banco, senha, banco inexistente ou payload invalido.
 
 ## Limitacoes
 
 - O ESP32 e o MPU6050 sao simulados no Wokwi.
-- A localizacao pode ser simulada por rota ou enviada pelo celular.
-- O ngrok e usado para permitir que o Wokwi acesse o backend local.
-- Este prototipo nao deve ser usado em situacao medica real.
+- A localizacao do Wokwi e simulada por rota.
+- O celular depende de permissoes do navegador.
+- O projeto ainda precisa de calibracao com hardware real.
+- Nao ha autenticacao, deploy em nuvem ou notificacao real por WhatsApp/SMS nesta versao.
 
-## Proximos passos com hardware real
+## Proximos Passos
 
-1. Gravar o firmware em um ESP32 real.
-2. Conectar um MPU6050 fisico nos pinos I2C.
-3. Conectar o ESP32 ao Wi-Fi.
-4. Alterar a URL da API para um servidor real.
-5. Adicionar leitura fisica de bateria.
-6. Adicionar GPS fisico, como NEO-6M, ou parear com celular.
+- Gravar o firmware em um ESP32 fisico.
+- Conectar um MPU6050 real.
+- Calibrar thresholds com testes reais.
+- Hospedar backend e banco em nuvem.
+- Adicionar autenticacao.
+- Adicionar notificacoes reais para responsaveis.
 
-Como o payload ja esta definido, o backend precisaria de poucas alteracoes.
