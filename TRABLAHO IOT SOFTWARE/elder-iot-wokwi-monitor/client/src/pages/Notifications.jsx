@@ -8,6 +8,7 @@ const statusTone = {
   PENDING: "warning",
   SENDING: "warning",
   RETRYING: "warning",
+  DRY_RUN: "warning",
   FAILED: "emergency",
   SKIPPED: "offline"
 };
@@ -39,6 +40,10 @@ export default function Notifications() {
 
   const sentCount = notifications.filter((item) => item.status === "SENT").length;
   const failedCount = notifications.filter((item) => item.status === "FAILED").length;
+  const dryRunCount = notifications.filter((item) => item.status === "DRY_RUN").length;
+  const queueStatus = queue?.dryRun
+    ? queue?.smtpConfigured ? "Modo teste ativo" : "SMTP nao configurado"
+    : "SMTP ativo";
 
   return (
     <div className="page-stack">
@@ -51,14 +56,20 @@ export default function Notifications() {
         <div className="card status-card tone-warning">
           <div className="card-title-row"><span>Fila</span><RefreshCw size={20} /></div>
           <strong>{queue?.queued ?? 0}</strong>
-          <p>{queue?.dryRun ? "Dry-run ativo" : "SMTP ativo"}</p>
+          <p>{queueStatus}</p>
         </div>
         <div className="card status-card tone-emergency">
           <div className="card-title-row"><span>Falhas</span><MailWarning size={20} /></div>
           <strong>{failedCount}</strong>
-          <p>Com retry manual</p>
+          <p>{dryRunCount ? `${dryRunCount} em modo teste` : "Com retry manual"}</p>
         </div>
       </section>
+
+      {queue && !queue.readyForRealDelivery ? (
+        <div className="inline-error">
+          Envio real de e-mail desativado. Configure SMTP no server/.env e reinicie o backend.
+        </div>
+      ) : null}
 
       <section className="card page-card notifications-page">
         <div className="section-heading">

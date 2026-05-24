@@ -140,7 +140,12 @@ export default function App() {
 
     socket.on("connect", () => setSocketConnected(true));
     socket.on("disconnect", () => setSocketConnected(false));
-    socket.on("server:heartbeat", setHealth);
+    socket.on("server:heartbeat", (nextHealth) => {
+      setHealth((current) => ({
+        ...current,
+        ...nextHealth
+      }));
+    });
     socket.on("reading:new", (reading) => {
       setReadings((current) => [reading, ...current.filter((item) => item.id !== reading.id)].slice(0, 100));
     });

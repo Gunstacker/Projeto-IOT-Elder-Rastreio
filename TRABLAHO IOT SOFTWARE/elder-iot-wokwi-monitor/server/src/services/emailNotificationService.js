@@ -30,6 +30,24 @@ const quickGuidance = {
 let transporter;
 const queue = [];
 let processing = false;
+const SMTP_NOT_CONFIGURED_MESSAGE =
+  "SMTP nao configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS e EMAIL_DRY_RUN=false no server/.env para envio real.";
+
+function normalizedSmtpPass() {
+  return String(config.smtp.pass || "").replace(/\s+/g, "");
+}
+
+function isSmtpConfigured() {
+  const pass = normalizedSmtpPass();
+
+  return Boolean(
+    config.smtp.host &&
+    config.smtp.user &&
+    pass &&
+    pass !== "SENHA_DE_APP_DO_GMAIL" &&
+    !pass.includes("COLOQUE_")
+  );
+}
 
 function buildTransporter() {
   if (transporter) {
@@ -46,7 +64,7 @@ function buildTransporter() {
   const auth = config.smtp.user
     ? {
         user: config.smtp.user,
-        pass: config.smtp.pass
+        pass: normalizedSmtpPass()
       }
     : undefined;
 
@@ -143,6 +161,26 @@ async function updateNotification(id, patch) {
 async function sendNotification(id) {
   const notification = await get("SELECT * FROM email_notifications WHERE id = $1", [Number(id)]);
   if (!notification || notification.status === "SENT" || !notification.recipient_email) {
+    return;
+  }
+
+  if (config.emailDryRun) {
+    await updateNotification(id, {
+      status: "DRY_RUN",
+      attempts: 0,
+      error_message: isSmtpConfigured()
+        ? "EMAIL_DRY_RUN=true; notificacao registrada, mas envio real desativado."
+        : SMTP_NOT_CONFIGURED_MESSAGE
+    });
+    return;
+  }
+
+  if (!isSmtpConfigured()) {
+    await updateNotification(id, {
+      status: "FAILED",
+      attempts: 0,
+      error_message: SMTP_NOT_CONFIGURED_MESSAGE
+    });
     return;
   }
 
@@ -352,6 +390,8 @@ function getQueueState() {
   return {
     enabled: config.emailNotificationsEnabled,
     dryRun: config.emailDryRun,
+    smtpConfigured: isSmtpConfigured(),
+    readyForRealDelivery: config.emailNotificationsEnabled && !config.emailDryRun && isSmtpConfigured(),
     queued: queue.length,
     processing
   };

@@ -1,19 +1,23 @@
+const { buildHealthPayload } = require("./services/healthService");
+
 let ioInstance = null;
+
+async function emitHeartbeat(target) {
+  target.emit("server:heartbeat", await buildHealthPayload());
+}
 
 function setupSocket(io) {
   ioInstance = io;
 
   io.on("connection", (socket) => {
-    socket.emit("server:heartbeat", {
-      status: "connected",
-      serverTime: new Date().toISOString()
+    emitHeartbeat(socket).catch((error) => {
+      console.error("Falha ao emitir heartbeat:", error.message);
     });
   });
 
   setInterval(() => {
-    io.emit("server:heartbeat", {
-      status: "ok",
-      serverTime: new Date().toISOString()
+    emitHeartbeat(io).catch((error) => {
+      console.error("Falha ao emitir heartbeat:", error.message);
     });
   }, 5000);
 }
