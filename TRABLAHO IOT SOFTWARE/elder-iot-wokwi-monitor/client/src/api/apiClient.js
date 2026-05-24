@@ -34,6 +34,11 @@ export const api = {
     }),
   devices: () => request("/api/devices"),
   events: (query = "") => request(`/api/events${query}`),
+  emailNotifications: (query = "") => request(`/api/email-notifications${query}`),
+  retryEmailNotification: (id) =>
+    request(`/api/email-notifications/${id}/retry`, {
+      method: "POST"
+    }),
   resolveEvent: (id, payload) =>
     request(`/api/events/${id}/resolve`, {
       method: "PATCH",

@@ -1,14 +1,7 @@
-import { useEffect, useState } from "react";
-import { LocateFixed } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { LocateFixed, MapPin } from "lucide-react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
-
-const markerIcon = L.divIcon({
-  className: "map-marker",
-  html: "<span></span>",
-  iconSize: [22, 22],
-  iconAnchor: [11, 11]
-});
 
 function MapUpdater({ center, focusRequest }) {
   const map = useMap();
@@ -32,6 +25,13 @@ export default function MapView({ elder }) {
   const lat = hasLocation ? Number(elder.lastLatitude) : -16.686891;
   const lng = hasLocation ? Number(elder.lastLongitude) : -49.264794;
   const center = [lat, lng];
+  const online = String(elder?.currentStatus || "NORMAL").toUpperCase() !== "OFFLINE";
+  const markerIcon = useMemo(() => L.divIcon({
+    className: `map-marker-shell ${online ? "map-marker-online" : "map-marker-offline"}`,
+    html: "<span class=\"map-marker-dot\"></span><span class=\"map-marker-pulse\"></span>",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
+  }), [online]);
 
   return (
     <section className="card map-card">
@@ -68,7 +68,11 @@ export default function MapView({ elder }) {
           </Marker>
         ) : null}
       </MapContainer>
-      {!hasLocation ? <p className="empty-state">Aguardando GPS real do celular.</p> : null}
+      <div className="map-context-strip">
+        <span><MapPin size={15} /> {hasLocation ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : "Aguardando GPS real do celular"}</span>
+        <span>{online ? "Marcador online" : "Ultima localizacao conhecida"}</span>
+        <span>{elder?.lastSeenAt ? new Date(elder.lastSeenAt).toLocaleString() : "--"}</span>
+      </div>
     </section>
   );
 }

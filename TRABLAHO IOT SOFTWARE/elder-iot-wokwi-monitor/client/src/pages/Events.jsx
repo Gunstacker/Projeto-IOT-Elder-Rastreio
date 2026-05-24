@@ -1,99 +1,152 @@
 import { useMemo, useState } from "react";
-import { CheckCircle, RotateCw } from "lucide-react";
+import { CheckCircle, RotateCw, Search } from "lucide-react";
 import { api } from "../api/apiClient";
+import { EVENT_META, eventMeta, formatDateTime, severityMeta } from "../constants/monitoring";
 
-const filters = [
-  { label: "Todos", value: "" },
-  { label: "Emergencia", value: "?severity=HIGH&limit=100" },
-  { label: "Atencao", value: "?severity=MEDIUM&limit=100" },
-  { label: "Baixo", value: "?severity=LOW&limit=100" },
-  { label: "Nao resolvidos", value: "?resolved=false&limit=100" },
-  { label: "Resolvidos", value: "?resolved=true&limit=100" }
+const severityOptions = [
+  { label: "Todas", value: "" },
+  { label: "Alta", value: "HIGH" },
+  { label: "Media", value: "MEDIUM" },
+  { label: "Baixa", value: "LOW" }
 ];
 
-export default function Events({ events, setEvents, resolveEvent }) {
-  const [activeFilter, setActiveFilter] = useState("");
+const resolvedOptions = [
+  { label: "Todos", value: "" },
+  { label: "Abertos", value: "false" },
+  { label: "Resolvidos", value: "true" }
+];
+
+function buildQuery(filters) {
+  const params = new URLSearchParams();
+  params.set("limit", "100");
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) {
+      params.set(key, value);
+    }
+  });
+
+  return `?${params.toString()}`;
+}
+
+export default function Events({ events, setEvents, resolveEvent, elders = [] }) {
+  const [filters, setFilters] = useState({
+    severity: "",
+    resolved: "",
+    eventType: "",
+    elderId: "",
+    from: "",
+    to: ""
+  });
   const [loading, setLoading] = useState(false);
 
-  async function loadFilter(query) {
-    setActiveFilter(query);
+  async function loadFilter(nextFilters = filters) {
     setLoading(true);
     try {
-      const response = await api.events(query || "?limit=100");
+      const response = await api.events(buildQuery(nextFilters));
       setEvents(response.data || []);
     } finally {
       setLoading(false);
     }
   }
 
+  function updateFilter(field, value) {
+    const next = { ...filters, [field]: value };
+    setFilters(next);
+  }
+
   const rows = useMemo(() => events || [], [events]);
 
   return (
-    <section className="card page-card">
+    <section className="card page-card events-page">
       <div className="section-heading">
-        <h2>Eventos</h2>
-        <button className="button button-small" onClick={() => loadFilter(activeFilter)} disabled={loading}>
-          <RotateCw size={15} />
-          Atualizar
-        </button>
-      </div>
-
-      <div className="filter-row">
-        {filters.map((filter) => (
-          <button
-            key={filter.label}
-            className={`filter-button ${activeFilter === filter.value ? "active" : ""}`}
-            onClick={() => loadFilter(filter.value)}
-          >
-            {filter.label}
+        <div>
+          <h2>Historico inteligente</h2>
+          <span>{rows.length} eventos encontrados</span>
+        </div>
+        <div className="button-row">
+          <button className="button button-secondary button-small" onClick={() => loadFilter()} disabled={loading}>
+            <Search size={15} />
+            Filtrar
           </button>
-        ))}
+          <button className="button button-small" onClick={() => loadFilter()} disabled={loading}>
+            <RotateCw size={15} />
+            Atualizar
+          </button>
+        </div>
       </div>
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Data/Hora</th>
-              <th>Idoso</th>
-              <th>Dispositivo</th>
-              <th>Evento</th>
-              <th>Status</th>
-              <th>Gravidade</th>
-              <th>Risk</th>
-              <th>Mensagem</th>
-              <th>Localizacao</th>
-              <th>Resolvido</th>
-              <th>Acao</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((event) => (
-              <tr key={event.id}>
-                <td>{event.createdAt ? new Date(event.createdAt).toLocaleString() : "--"}</td>
-                <td>{event.elderName || event.elderId}</td>
-                <td>{event.deviceId || "Celular"}</td>
-                <td>{event.eventType}</td>
-                <td>{event.status}</td>
-                <td>{event.severity}</td>
-                <td>{event.riskScore ?? "--"}</td>
-                <td>{event.message}</td>
-                <td>{event.latitude ? `${Number(event.latitude).toFixed(5)}, ${Number(event.longitude).toFixed(5)}` : "--"}</td>
-                <td>{event.resolved ? "Sim" : "Nao"}</td>
-                <td>
-                  {!event.resolved ? (
-                    <button className="button button-small" onClick={() => resolveEvent(event.id)}>
-                      <CheckCircle size={15} />
-                      Atender
-                    </button>
-                  ) : (
-                    event.resolvedBy || "--"
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="filter-panel">
+        <label>
+          Gravidade
+          <select value={filters.severity} onChange={(event) => updateFilter("severity", event.target.value)}>
+            {severityOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Status
+          <select value={filters.resolved} onChange={(event) => updateFilter("resolved", event.target.value)}>
+            {resolvedOptions.map((option) => <option key={option.label} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Tipo
+          <select value={filters.eventType} onChange={(event) => updateFilter("eventType", event.target.value)}>
+            <option value="">Todos</option>
+            {Object.entries(EVENT_META).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Paciente
+          <select value={filters.elderId} onChange={(event) => updateFilter("elderId", event.target.value)}>
+            <option value="">Todos</option>
+            {elders.map((elder) => <option key={elder.id} value={elder.id}>{elder.name}</option>)}
+          </select>
+        </label>
+        <label>
+          De
+          <input type="datetime-local" value={filters.from} onChange={(event) => updateFilter("from", event.target.value)} />
+        </label>
+        <label>
+          Ate
+          <input type="datetime-local" value={filters.to} onChange={(event) => updateFilter("to", event.target.value)} />
+        </label>
+      </div>
+
+      <div className="event-list">
+        {rows.map((item) => {
+          const meta = eventMeta(item.eventType);
+          const severity = severityMeta(item.severity);
+          const Icon = meta.icon;
+
+          return (
+            <article key={item.id} className={`event-row event-row-${severity.tone}`}>
+              <div className={`event-row-icon timeline-icon-${meta.tone}`}>
+                <Icon size={18} />
+              </div>
+              <div>
+                <strong>{meta.label}</strong>
+                <span>{formatDateTime(item.createdAt)} | {item.elderName || item.elderId}</span>
+                <p>{item.message || meta.description}</p>
+              </div>
+              <div className="event-row-meta">
+                <span className={`severity-pill severity-pill-${severity.tone}`}>{severity.label}</span>
+                <span>{item.deviceId || "Celular"}</span>
+                <span>{item.latitude ? `${Number(item.latitude).toFixed(5)}, ${Number(item.longitude).toFixed(5)}` : "Sem GPS"}</span>
+              </div>
+              <div className="event-row-action">
+                {!item.resolved ? (
+                  <button className="button button-small" onClick={() => resolveEvent(item.id)}>
+                    <CheckCircle size={15} />
+                    Atender
+                  </button>
+                ) : (
+                  <span className="resolved-label">Resolvido</span>
+                )}
+              </div>
+            </article>
+          );
+        })}
         {!rows.length ? <p className="empty-state">Nenhum evento para o filtro atual.</p> : null}
       </div>
     </section>

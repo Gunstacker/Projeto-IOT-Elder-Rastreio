@@ -15,6 +15,7 @@ O fluxo principal usa um ESP32 com MPU6050 no Wokwi. O dispositivo simulado envi
 - Detecta bateria baixa.
 - Detecta perda de comunicacao do dispositivo.
 - Exibe status, sensores, mapa e historico no dashboard.
+- Envia notificacoes por e-mail para o responsavel em eventos importantes.
 - Permite marcar eventos como atendidos.
 - Tem fallback local caso Wokwi ou tunel publico falhem.
 
@@ -80,9 +81,19 @@ DATABASE_URL=postgres://USUARIO:SENHA@localhost:5432/elder_iot_monitor
 PGSSL=false
 OFFLINE_AFTER_SECONDS=10
 OFFLINE_CHECK_INTERVAL_MS=5000
+EMAIL_NOTIFICATIONS_ENABLED=true
+EMAIL_DRY_RUN=true
+EMAIL_FROM=Elder IoT Monitor <alerts@elder-iot.local>
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
 ```
 
 Importante: `.env.example` e so exemplo. Quem e carregado pela aplicacao e `server/.env`.
+
+Com `EMAIL_DRY_RUN=true`, o backend registra e processa o envio sem depender de SMTP real. Para envio real, configure `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` e mude `EMAIL_DRY_RUN=false`.
 
 ### 3. Instalar dependencias
 
@@ -148,6 +159,7 @@ h = ajuda
 - `/events`: historico de eventos.
 - `/elders`: idosos cadastrados.
 - `/devices`: dispositivos monitorados.
+- `/notifications`: historico de notificacoes por e-mail e retry de falhas.
 - `/phone-gps`: celular como fonte auxiliar de GPS/movimento.
 - `/local-simulator`: fallback local para demonstracao.
 
@@ -188,6 +200,7 @@ Olhe o terminal do backend. O erro real aparece la. Normalmente e banco, senha, 
 - O celular depende de permissoes do navegador.
 - O projeto ainda precisa de calibracao com hardware real.
 - Nao ha autenticacao, deploy em nuvem ou notificacao real por WhatsApp/SMS nesta versao.
+- E-mails reais dependem de um SMTP configurado no `server/.env`.
 
 ## Proximos Passos
 
@@ -197,4 +210,3 @@ Olhe o terminal do backend. O erro real aparece la. Normalmente e banco, senha, 
 - Hospedar backend e banco em nuvem.
 - Adicionar autenticacao.
 - Adicionar notificacoes reais para responsaveis.
-

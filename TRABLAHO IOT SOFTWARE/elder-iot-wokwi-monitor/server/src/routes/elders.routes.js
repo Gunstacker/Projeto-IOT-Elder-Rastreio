@@ -34,18 +34,22 @@ router.post("/", async (req, res, next) => {
 
     const result = await query(`
       INSERT INTO elders (
-        name, age, "responsibleName", "responsiblePhone", "emergencyContact",
-        "medicalNotes", "currentStatus", "createdAt", "updatedAt"
+        name, age, "responsibleName", "responsibleEmail", "emailNotificationsEnabled",
+        "responsiblePhone", "emergencyContact", "medicalNotes", "currentStatus",
+        "createdAt", "updatedAt"
       )
       VALUES (
         $1, $2, $3, $4, $5,
-        $6, 'NORMAL', $7, $8
+        $6, $7, $8, 'NORMAL',
+        $9, $10
       )
       RETURNING id
     `, [
       String(body.name).trim(),
       body.age ? Number(body.age) : null,
       body.responsibleName || null,
+      body.responsibleEmail || null,
+      body.emailNotificationsEnabled !== false,
       body.responsiblePhone || null,
       body.emergencyContact || null,
       body.medicalNotes || null,
@@ -79,15 +83,19 @@ router.put("/:id", async (req, res, next) => {
       SET name = $1,
           age = $2,
           "responsibleName" = $3,
-          "responsiblePhone" = $4,
-          "emergencyContact" = $5,
-          "medicalNotes" = $6,
-          "updatedAt" = $7
-      WHERE id = $8
+          "responsibleEmail" = $4,
+          "emailNotificationsEnabled" = $5,
+          "responsiblePhone" = $6,
+          "emergencyContact" = $7,
+          "medicalNotes" = $8,
+          "updatedAt" = $9
+      WHERE id = $10
     `, [
       body.name || existing.name,
       body.age === "" || body.age === undefined ? existing.age : Number(body.age),
       body.responsibleName ?? existing.responsibleName,
+      body.responsibleEmail ?? existing.responsibleEmail,
+      body.emailNotificationsEnabled ?? existing.emailNotificationsEnabled,
       body.responsiblePhone ?? existing.responsiblePhone,
       body.emergencyContact ?? existing.emergencyContact,
       body.medicalNotes ?? existing.medicalNotes,

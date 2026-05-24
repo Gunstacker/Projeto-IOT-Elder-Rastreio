@@ -1,5 +1,6 @@
 import { AlertTriangle, Battery, HeartPulse, ShieldCheck } from "lucide-react";
 import AlertBanner from "../components/AlertBanner";
+import DashboardAnalytics from "../components/DashboardAnalytics";
 import DeviceStatusCard from "../components/DeviceStatusCard";
 import ElderProfileCard from "../components/ElderProfileCard";
 import EventTimeline from "../components/EventTimeline";
@@ -22,6 +23,7 @@ export default function Dashboard({
   selectedDevice,
   latestReading,
   readings,
+  devices,
   events,
   emergencyAlert,
   setEmergencyAlert,
@@ -71,9 +73,11 @@ export default function Dashboard({
       </div>
 
       <div className="dashboard-grid top-grid">
-        <ElderProfileCard elder={selectedElder} />
+        <ElderProfileCard elder={selectedElder} device={selectedDevice} latestReading={latestReading} />
         <DeviceStatusCard device={selectedDevice} />
       </div>
+
+      <DashboardAnalytics events={events} devices={devices} readings={readings} />
 
       <div className="dashboard-grid middle-grid">
         <SensorPanel reading={latestReading} />

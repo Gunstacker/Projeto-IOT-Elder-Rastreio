@@ -13,6 +13,7 @@ const readingsRoutes = require("./routes/readings.routes");
 const eldersRoutes = require("./routes/elders.routes");
 const devicesRoutes = require("./routes/devices.routes");
 const eventsRoutes = require("./routes/events.routes");
+const emailNotificationsRoutes = require("./routes/emailNotifications.routes");
 const phoneLocationRoutes = require("./routes/phoneLocation.routes");
 const simulationRoutes = require("./routes/simulation.routes");
 
@@ -35,6 +36,7 @@ app.use("/api/iot/readings", readingsRoutes);
 app.use("/api/elders", eldersRoutes);
 app.use("/api/devices", devicesRoutes);
 app.use("/api/events", eventsRoutes);
+app.use("/api/email-notifications", emailNotificationsRoutes);
 app.use("/api/location/phone", phoneLocationRoutes);
 app.use("/api/simulation", simulationRoutes);
 

@@ -1,5 +1,6 @@
 const { all, get, query } = require("../db");
 const { nowIso } = require("../utils/time");
+const emailNotificationService = require("./emailNotificationService");
 
 const EVENT_TYPES_TO_STORE = new Set([
   "FALL_IMPACT_DETECTED",
@@ -67,7 +68,12 @@ async function createEvent(input) {
     createdAt
   ]);
 
-  return getEventById(result.rows[0].id);
+  const event = await getEventById(result.rows[0].id);
+  emailNotificationService.enqueueEventNotification(event).catch((error) => {
+    console.error("Falha ao enfileirar e-mail de alerta:", error.message);
+  });
+
+  return event;
 }
 
 async function createEventIfAllowed(input) {
@@ -99,6 +105,32 @@ async function listEvents(filters = {}) {
   if (filters.resolved !== undefined) {
     params.push(String(filters.resolved) === "true");
     where.push(`events.resolved = $${params.length}`);
+  }
+
+  if (filters.eventType) {
+    params.push(String(filters.eventType).toUpperCase());
+    where.push(`events."eventType" = $${params.length}`);
+  }
+
+  if (filters.status) {
+    params.push(String(filters.status).toUpperCase());
+    where.push(`events.status = $${params.length}`);
+  }
+
+  if (filters.from) {
+    const fromDate = new Date(filters.from);
+    if (!Number.isNaN(fromDate.getTime())) {
+      params.push(fromDate.toISOString());
+      where.push(`events."createdAt" >= $${params.length}`);
+    }
+  }
+
+  if (filters.to) {
+    const toDate = new Date(filters.to);
+    if (!Number.isNaN(toDate.getTime())) {
+      params.push(toDate.toISOString());
+      where.push(`events."createdAt" <= $${params.length}`);
+    }
   }
 
   const limit = Math.max(1, Math.min(500, Number(filters.limit || 100)));

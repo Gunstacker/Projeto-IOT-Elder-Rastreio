@@ -27,6 +27,8 @@ async function initDatabase() {
       name TEXT NOT NULL,
       age INTEGER,
       "responsibleName" TEXT,
+      "responsibleEmail" TEXT,
+      "emailNotificationsEnabled" BOOLEAN DEFAULT true,
       "responsiblePhone" TEXT,
       "emergencyContact" TEXT,
       "medicalNotes" TEXT,
@@ -107,6 +109,27 @@ async function initDatabase() {
       "createdAt" TIMESTAMPTZ NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS email_notifications (
+      id SERIAL PRIMARY KEY,
+      elder_id INTEGER REFERENCES elders(id),
+      event_id INTEGER REFERENCES events(id),
+      recipient_email TEXT,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      sent_at TIMESTAMPTZ,
+      error_message TEXT,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    );
+
+    ALTER TABLE elders ADD COLUMN IF NOT EXISTS "responsibleEmail" TEXT;
+    ALTER TABLE elders ADD COLUMN IF NOT EXISTS "emailNotificationsEnabled" BOOLEAN DEFAULT true;
+    UPDATE elders
+    SET "emailNotificationsEnabled" = true
+    WHERE "emailNotificationsEnabled" IS NULL;
+
     CREATE TABLE IF NOT EXISTS phone_locations (
       id SERIAL PRIMARY KEY,
       "elderId" INTEGER NOT NULL REFERENCES elders(id),
@@ -123,6 +146,8 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_events_elder_created ON events("elderId", "createdAt");
     CREATE INDEX IF NOT EXISTS idx_events_device_type_created ON events("deviceId", "eventType", "createdAt");
     CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
+    CREATE INDEX IF NOT EXISTS idx_email_notifications_event ON email_notifications(event_id);
+    CREATE INDEX IF NOT EXISTS idx_email_notifications_status_created ON email_notifications(status, created_at DESC);
   `);
 }
 

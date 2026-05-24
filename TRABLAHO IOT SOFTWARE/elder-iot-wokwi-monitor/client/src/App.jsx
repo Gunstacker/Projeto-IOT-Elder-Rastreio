@@ -4,16 +4,20 @@ import Dashboard from "./pages/Dashboard";
 import Events from "./pages/Events";
 import Elders from "./pages/Elders";
 import Devices from "./pages/Devices";
+import Notifications from "./pages/Notifications";
 import PhoneGps from "./pages/PhoneGps";
 import LocalFallbackSimulator from "./pages/LocalFallbackSimulator";
+import ToastCenter from "./components/ToastCenter";
 import { api } from "./api/apiClient";
 import { createSocketClient } from "./socket/socketClient";
+import { eventMeta } from "./constants/monitoring";
 
 const routeMap = {
   "/dashboard": Dashboard,
   "/events": Events,
   "/elders": Elders,
   "/devices": Devices,
+  "/notifications": Notifications,
   "/phone-gps": PhoneGps,
   "/local-simulator": LocalFallbackSimulator
 };
@@ -44,8 +48,10 @@ export default function App() {
   const [devices, setDevices] = useState([]);
   const [readings, setReadings] = useState([]);
   const [events, setEvents] = useState([]);
+  const [toasts, setToasts] = useState([]);
   const [emergencyAlert, setEmergencyAlert] = useState(null);
   const [loadError, setLoadError] = useState("");
+  const [isBooting, setIsBooting] = useState(true);
   const [selectedElderId, setSelectedElderId] = useState(initialSelectedElderId);
 
   const activePage = routeMap[path] || Dashboard;
@@ -75,7 +81,29 @@ export default function App() {
       setLoadError("");
     } catch (error) {
       setLoadError(error.message);
+    } finally {
+      setIsBooting(false);
     }
+  }
+
+  function pushToast(event) {
+    const meta = eventMeta(event.eventType);
+    const id = `${event.id || event.eventType}-${Date.now()}`;
+    setToasts((current) => [
+      {
+        id,
+        eventType: event.eventType,
+        title: meta.label,
+        message: event.message || meta.description,
+        tone: meta.tone,
+        createdAt: event.createdAt
+      },
+      ...current
+    ].slice(0, 4));
+
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((toast) => toast.id !== id));
+    }, 7000);
   }
 
   useEffect(() => {
@@ -118,6 +146,7 @@ export default function App() {
     });
     socket.on("event:new", (event) => {
       setEvents((current) => [event, ...current.filter((item) => item.id !== event.id)].slice(0, 100));
+      pushToast(event);
     });
     socket.on("device:status", (device) => {
       setDevices((current) => {
@@ -214,6 +243,10 @@ export default function App() {
       health={health}
       socketConnected={socketConnected}
       loadError={loadError}
+      devices={devices}
+      readings={readings}
+      events={events}
+      isBooting={isBooting}
       elders={elders}
       selectedElderId={activeElderId}
       onSelectedElderChange={setSelectedElderId}
@@ -235,6 +268,10 @@ export default function App() {
         setEmergencyAlert={setEmergencyAlert}
         resolveEvent={resolveEvent}
         reload={loadInitialData}
+      />
+      <ToastCenter
+        toasts={toasts}
+        onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))}
       />
     </Layout>
   );
